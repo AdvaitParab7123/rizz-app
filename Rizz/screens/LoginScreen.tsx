@@ -103,14 +103,14 @@ export default function LoginScreen({ navigation }: any) {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.signUpButton, loading && styles.disabledButton]}
+          style={[styles.signUpButton, loading && styles.disabledButton]}
           onPress={handleSignUp}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#000" />
+            <ActivityIndicator size="small" color="#10B981" />
           ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
+            <Text style={styles.signUpButtonText}>Sign Up</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -221,6 +221,14 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     backgroundColor: 'transparent',
+    shadowColor: '#10B981',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   signUpButtonText: {
     color: '#10B981',
