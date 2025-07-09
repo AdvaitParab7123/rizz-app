@@ -1,101 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator, StyleSheet, Dimensions, Animated, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions, Animated, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { extractTextFromImage } from '../services/extractTextFromImage';
-import { signOutUser } from '../services/authService';
+import { NavigationProps } from '../types';
+import { COLORS, SPACING, FONT_SIZES, FONT_WEIGHTS, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { MatrixRain } from '../components/MatrixRain';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { validateImageFile } from '../utils/validation';
+import { logError } from '../utils/errorHandling';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// Matrix Rain Component - Enhanced Version
-const MatrixRain = () => {
-  const animatedValues = useRef(Array.from({ length: 12 }, () => new Animated.Value(0))).current;
-  const [matrixChars, setMatrixChars] = useState<string[]>([]);
-  
-  useEffect(() => {
-    // Generate random matrix characters
-    const generateMatrixChars = () => {
-      const chars = [];
-      for (let i = 0; i < 12; i++) {
-        const columnChars = Array.from({ length: 30 }, () => {
-          // Mix of Japanese katakana, numbers, and symbols
-          const charSets = [
-            () => String.fromCharCode(0x30A0 + Math.random() * 96), // Katakana
-            () => String.fromCharCode(0x0030 + Math.random() * 10), // Numbers
-            () => String.fromCharCode(0x0041 + Math.random() * 26), // Letters
-            () => ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'][Math.floor(Math.random() * 10)],
-          ];
-          return charSets[Math.floor(Math.random() * charSets.length)]();
-        }).join('\n');
-        chars.push(columnChars);
-      }
-      setMatrixChars(chars);
-    };
+interface UploadScreenProps extends NavigationProps {}
 
-    generateMatrixChars();
-    
-    const animations = animatedValues.map((animValue, index) => {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(index * 500),
-          Animated.timing(animValue, {
-            toValue: 1,
-            duration: 5000 + Math.random() * 3000,
-            useNativeDriver: true,
-          }),
-          Animated.delay(Math.random() * 1500),
-        ])
-      );
-    });
-    
-    animations.forEach(animation => animation.start());
-    
-    // Regenerate characters periodically
-    const interval = setInterval(generateMatrixChars, 1500);
-    
-    return () => {
-      animations.forEach(animation => animation.stop());
-      clearInterval(interval);
-    };
-  }, []);
-
-  return (
-    <View style={styles.matrixContainer}>
-      {animatedValues.map((animValue, index) => (
-        <Animated.View
-          key={index}
-          style={[
-            styles.matrixColumn,
-            {
-              left: (index * width) / 12,
-              transform: [
-                {
-                  translateY: animValue.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-height * 2, height * 2],
-                  }),
-                },
-              ],
-              opacity: animValue.interpolate({
-                inputRange: [0, 0.3, 0.7, 1],
-                outputRange: [0, 0.8, 0.6, 0.2],
-              }),
-            },
-          ]}
-        >
-          <Text style={styles.matrixText}>
-            {matrixChars[index] || ''}
-          </Text>
-        </Animated.View>
-      ))}
-    </View>
-  );
-};
-
-export default function UploadScreen({ navigation }: any) {
+export default function UploadScreen({ navigation }: UploadScreenProps) {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const catWiggleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const pulse = () => {
@@ -113,49 +35,77 @@ export default function UploadScreen({ navigation }: any) {
       ]).start(() => pulse());
     };
 
-    pulse();
-  }, [pulseAnim]);
+    // Cat wiggle animation
+    const catWiggle = () => {
+      Animated.sequence([
+        Animated.timing(catWiggleAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(catWiggleAnim, {
+          toValue: -1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(catWiggleAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.delay(3000),
+      ]).start(() => catWiggle());
+    };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            setLoggingOut(true);
-            try {
-              await signOutUser();
-              navigation.navigate('Login');
-            } catch (error: any) {
-              Alert.alert('Error', 'Failed to sign out');
-            } finally {
-              setLoggingOut(false);
-            }
-          },
-        },
-      ]
-    );
-  };
+    pulse();
+    catWiggle();
+  }, [pulseAnim, catWiggleAnim]);
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      base64: true,
-      quality: 1,
-    });
-    if (!result.canceled && result.assets && result.assets[0].base64) {
-      setLoading(true);
-      setImage(result.assets[0].uri);
-      const text = await extractTextFromImage(result.assets[0].base64);
+    try {
+      // Request permissions first
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Please grant permission to access your photo library');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        base64: true,
+        quality: 0.8, // Reduced quality for better performance
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+      
+      if (!result.canceled && result.assets && result.assets[0] && result.assets[0].base64) {
+        const base64Data = result.assets[0].base64;
+        const imageUri = result.assets[0].uri;
+        
+        if (!validateImageFile(base64Data)) {
+          Alert.alert('Error', 'Please select a valid image file');
+          return;
+        }
+
+        setLoading(true);
+        setImage(imageUri);
+        
+        try {
+          const text = await extractTextFromImage(base64Data);
+          setLoading(false);
+          navigation.navigate('Reply', { text });
+        } catch (error) {
+          setLoading(false);
+          logError(error as Error, 'UploadScreen.extractTextFromImage');
+          Alert.alert('Error', 'Failed to extract text from image. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      logError(error as Error, 'UploadScreen.pickImage');
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
       setLoading(false);
-      navigation.navigate('Reply', { text });
     }
   };
 
@@ -167,18 +117,28 @@ export default function UploadScreen({ navigation }: any) {
       {/* Dark Overlay - Reduced opacity to show Matrix effect */}
       <View style={styles.overlay} />
       
-      {/* Logout Button */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        disabled={loggingOut}
+      {/* Cat Image - Positioned in top-right corner */}
+      <Animated.View 
+        style={[
+          styles.catContainer,
+          {
+            transform: [
+              {
+                rotate: catWiggleAnim.interpolate({
+                  inputRange: [-1, 0, 1],
+                  outputRange: ['-3deg', '0deg', '3deg'],
+                }),
+              },
+            ],
+          },
+        ]}
       >
-        {loggingOut ? (
-          <ActivityIndicator size="small" color="#FF4444" />
-        ) : (
-          <Text style={styles.logoutButtonText}>Sign Out</Text>
-        )}
-      </TouchableOpacity>
+        <Image 
+          source={require('../assets/cat-leaning.png')} 
+          style={styles.catImage}
+          resizeMode="contain"
+        />
+      </Animated.View>
       
       {/* Content */}
       <View style={styles.content}>
@@ -203,8 +163,12 @@ export default function UploadScreen({ navigation }: any) {
         {/* Loading Indicator */}
         {loading && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#00FF99" />
-            <Text style={styles.loadingText}>Analyzing your screenshot...</Text>
+            <LoadingSpinner 
+              size="large" 
+              color={COLORS.primary}
+              text="Analyzing your screenshot..."
+              textColor={COLORS.primary}
+            />
           </View>
         )}
         
@@ -223,97 +187,63 @@ export default function UploadScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
-  },
-  matrixContainer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
-  matrixColumn: {
-    position: 'absolute',
-    width: width / 12,
-    height: height * 4,
-  },
-  matrixText: {
-    color: '#00FF99',
-    fontSize: 16,
-    fontFamily: 'monospace',
-    lineHeight: 18,
-    textAlign: 'center',
-    fontWeight: 'bold',
-    textShadowColor: '#00FF99',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 2,
+    backgroundColor: COLORS.background,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.50)', // Further reduced opacity to show Matrix effect
+    backgroundColor: COLORS.overlay,
     zIndex: 2,
   },
-  logoutButton: {
+  catContainer: {
     position: 'absolute',
-    top: 60,
-    right: 24,
-    zIndex: 4,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FF4444',
+    top: 80,
+    right: 4,
+    zIndex: 3,
   },
-  logoutButtonText: {
-    color: '#FF4444',
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+  catImage: {
+    width: 90,
+    height: 120,
+    opacity: 0.9,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING.xl,
     zIndex: 3,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontSize: FONT_SIZES.xxl,
+    fontWeight: FONT_WEIGHTS.extrabold,
+    color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
     letterSpacing: 1,
-    textShadowColor: '#00FF99',
+    textShadowColor: COLORS.primary,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#9CA3AF',
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: SPACING.xxl,
     letterSpacing: 0.5,
-    fontWeight: '400',
+    fontWeight: FONT_WEIGHTS.normal,
   },
   pickButton: {
-    backgroundColor: '#00CC66',
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 20,
-    shadowColor: '#00FF99',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 15,
+    backgroundColor: COLORS.primaryDark,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: BORDER_RADIUS.xl,
+    ...SHADOWS.primary,
     borderWidth: 1,
-    borderColor: '#00FF99',
+    borderColor: COLORS.primary,
   },
   pickButtonText: {
-    color: '#000000',
-    fontWeight: '700',
-    fontSize: 18,
+    color: COLORS.background,
+    fontWeight: FONT_WEIGHTS.bold,
+    fontSize: FONT_SIZES.lg,
     textAlign: 'center',
     letterSpacing: 0.5,
   },
@@ -321,40 +251,26 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   loadingContainer: {
-    marginTop: 32,
+    marginTop: SPACING.xl,
     alignItems: 'center',
   },
-  loadingText: {
-    color: '#00FF99',
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: '500',
-    letterSpacing: 0.5,
-  },
   imageContainer: {
-    marginTop: 32,
+    marginTop: SPACING.xl,
     alignItems: 'center',
   },
   previewImage: {
     width: 200,
     height: 200,
-    borderRadius: 12,
+    borderRadius: BORDER_RADIUS.md,
     borderWidth: 2,
-    borderColor: '#00FF99',
-    shadowColor: '#00FF99',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-    elevation: 10,
+    borderColor: COLORS.primary,
+    ...SHADOWS.primary,
   },
   imageText: {
-    color: '#00FF99',
-    marginTop: 12,
-    fontSize: 14,
-    fontWeight: '600',
+    color: COLORS.primary,
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.semibold,
     letterSpacing: 0.5,
   },
 }); 

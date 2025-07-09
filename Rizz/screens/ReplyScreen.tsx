@@ -1,107 +1,66 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, Animated } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { generateReplies } from '../services/generateReplies';
-import { signOutUser } from '../services/authService';
+import { ReplyScreenProps } from '../types';
+import { COLORS, SPACING, FONT_SIZES, FONT_WEIGHTS, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { BackgroundGradient } from '../components/BackgroundGradient';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// Subtle Background Animation Component
-const BackgroundGradient = () => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  
-  useEffect(() => {
-    const fadeAnimation = () => {
-      Animated.sequence([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0.3,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ]).start(() => fadeAnimation());
-    };
-    
-    fadeAnimation();
-  }, [fadeAnim]);
-
-  return (
-    <Animated.View style={[styles.backgroundGradient, { opacity: fadeAnim }]} />
-  );
-};
-
-export default function ReplyScreen({ route, navigation }: any) {
+export default function ReplyScreen({ route, navigation }: ReplyScreenProps) {
   const { text } = route.params;
   const [replies, setReplies] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loggingOut, setLoggingOut] = useState(false);
   const buttonAnimations = useRef(Array.from({ length: 3 }, () => new Animated.Value(1))).current;
 
   useEffect(() => {
     const fetchReplies = async () => {
-      const generatedReplies = await generateReplies(text);
-      setReplies(generatedReplies);
-      setLoading(false);
+      try {
+        const generatedReplies = await generateReplies(text);
+        setReplies(generatedReplies);
+      } catch (error) {
+        console.error('Error generating replies:', error);
+        Alert.alert('Error', 'Failed to generate replies. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     };
     fetchReplies();
   }, [text]);
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            setLoggingOut(true);
-            try {
-              await signOutUser();
-              navigation.navigate('Login');
-            } catch (error: any) {
-              Alert.alert('Error', 'Failed to sign out');
-            } finally {
-              setLoggingOut(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const copyToClipboard = async (reply: string, index: number) => {
     // Button press animation
-    Animated.sequence([
-      Animated.timing(buttonAnimations[index], {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(buttonAnimations[index], {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    const animValue = buttonAnimations[index];
+    if (animValue) {
+      Animated.sequence([
+        Animated.timing(animValue, {
+          toValue: 0.95,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animValue, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
 
-    await Clipboard.setStringAsync(reply);
-    Alert.alert('Copied!', 'Reply copied to clipboard');
+    try {
+      await Clipboard.setStringAsync(reply);
+      Alert.alert('Copied!', 'Reply copied to clipboard');
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      Alert.alert('Error', 'Failed to copy to clipboard');
+    }
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <BackgroundGradient />
-        <Text style={styles.loadingText}>Generating your rizz replies...</Text>
+        <Text style={styles.loadingText}>Generating your Rizzo replies...</Text>
       </View>
     );
   }
@@ -110,19 +69,6 @@ export default function ReplyScreen({ route, navigation }: any) {
     <View style={styles.container}>
       <BackgroundGradient />
       
-      {/* Logout Button */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        disabled={loggingOut}
-      >
-        {loggingOut ? (
-          <ActivityIndicator size="small" color="#FF4444" />
-        ) : (
-          <Text style={styles.logoutButtonText}>Sign Out</Text>
-        )}
-      </TouchableOpacity>
-      
       <ScrollView 
         style={styles.scrollContainer}
         contentContainerStyle={styles.scrollContent}
@@ -130,7 +76,7 @@ export default function ReplyScreen({ route, navigation }: any) {
       >
         {/* Title Bar */}
         <View style={styles.titleContainer}>
-          <Text style={styles.mainTitle}>Your Rizz Replies</Text>
+          <Text style={styles.mainTitle}>Your Rizzo Replies</Text>
           <Text style={styles.subtitle}>AI-powered conversation starters</Text>
         </View>
 
@@ -153,7 +99,7 @@ export default function ReplyScreen({ route, navigation }: any) {
                 <Text style={styles.replyText}>{reply}</Text>
               </View>
               
-              <Animated.View style={{ transform: [{ scale: buttonAnimations[index] }] }}>
+              <Animated.View style={{ transform: [{ scale: buttonAnimations[index] || 1 }] }}>
                 <TouchableOpacity
                   style={styles.copyButton}
                   onPress={() => copyToClipboard(reply, index)}
@@ -173,174 +119,126 @@ export default function ReplyScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-  },
-  backgroundGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#0a0a0a',
-    opacity: 0.5,
-  },
-  logoutButton: {
-    position: 'absolute',
-    top: 60,
-    right: 24,
-    zIndex: 4,
-    backgroundColor: 'rgba(255, 68, 68, 0.1)',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FF4444',
-  },
-  logoutButtonText: {
-    color: '#FF4444',
-    fontSize: 14,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: COLORS.background,
   },
   loadingText: {
-    color: '#00FF99',
-    fontSize: 18,
-    fontWeight: '600',
+    color: COLORS.primary,
+    fontSize: FONT_SIZES.lg,
+    fontWeight: FONT_WEIGHTS.semibold,
     letterSpacing: 0.5,
   },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: SPACING.lg,
     paddingTop: 60,
-    paddingBottom: 40,
+    paddingBottom: SPACING.xl,
   },
   titleContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: SPACING.xl,
   },
   mainTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontSize: FONT_SIZES.xxxl,
+    fontWeight: FONT_WEIGHTS.extrabold,
+    color: COLORS.textPrimary,
     textAlign: 'center',
     letterSpacing: 1,
-    textShadowColor: '#00FF99',
+    textShadowColor: COLORS.primary,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 15,
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#9CA3AF',
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
     textAlign: 'center',
     letterSpacing: 0.5,
-    fontWeight: '400',
+    fontWeight: FONT_WEIGHTS.normal,
   },
   extractedSection: {
-    marginBottom: 32,
+    marginBottom: SPACING.xl,
   },
   extractedLabel: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 12,
+    fontSize: FONT_SIZES.xl,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
     letterSpacing: 0.5,
   },
   extractedTextContainer: {
-    backgroundColor: '#111827',
-    borderRadius: 16,
-    padding: 20,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
     borderWidth: 1,
-    borderColor: '#374151',
-    shadowColor: '#00FF99',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    borderColor: COLORS.border,
+    ...SHADOWS.subtle,
   },
   extractedText: {
-    color: '#E5E7EB',
-    fontSize: 16,
+    color: COLORS.textTertiary,
+    fontSize: FONT_SIZES.md,
     lineHeight: 24,
-    fontWeight: '400',
+    fontWeight: FONT_WEIGHTS.normal,
     letterSpacing: 0.3,
   },
   repliesSection: {
-    marginBottom: 20,
+    marginBottom: SPACING.lg,
   },
   repliesLabel: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 20,
+    fontSize: FONT_SIZES.xl,
+    fontWeight: FONT_WEIGHTS.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.lg,
     letterSpacing: 0.5,
   },
   replyContainer: {
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   replyBlock: {
-    backgroundColor: '#111827',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
+    backgroundColor: COLORS.backgroundSecondary,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
     borderWidth: 1,
-    borderColor: '#374151',
-    shadowColor: '#00FF99',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    borderColor: COLORS.border,
+    ...SHADOWS.subtle,
   },
   replyNumber: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#00FF99',
-    marginBottom: 8,
+    fontSize: FONT_SIZES.sm,
+    fontWeight: FONT_WEIGHTS.semibold,
+    color: COLORS.primary,
+    marginBottom: SPACING.sm,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   replyText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: COLORS.textPrimary,
+    fontSize: FONT_SIZES.md,
     lineHeight: 24,
-    fontWeight: '400',
+    fontWeight: FONT_WEIGHTS.normal,
     letterSpacing: 0.3,
   },
   copyButton: {
-    backgroundColor: '#00CC66',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
+    backgroundColor: COLORS.primaryDark,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDER_RADIUS.xxl,
     alignSelf: 'flex-start',
-    shadowColor: '#00FF99',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+    ...SHADOWS.secondary,
     borderWidth: 1,
-    borderColor: '#00FF99',
+    borderColor: COLORS.primary,
   },
   copyButtonText: {
-    color: '#000000',
-    fontWeight: '700',
-    fontSize: 14,
+    color: COLORS.background,
+    fontWeight: FONT_WEIGHTS.bold,
+    fontSize: FONT_SIZES.sm,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },

@@ -2,19 +2,33 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
-// TODO: Replace with your actual Firebase project configuration
-// Get this from Firebase Console > Project Settings > General > Your apps > Web app
+// Firebase configuration - should be moved to environment variables
 const firebaseConfig = {
-  apiKey: 'AIzaSyB9DEIi42o786-cX0uymyALTD6bz7h70XE',
-  authDomain: 'rizz-app-ef452.firebaseapp.com',
-  projectId: 'rizz-app-ef452',
-  storageBucket: 'rizz-app-ef452.firebasestorage.app',
-  messagingSenderId: '522746955812',
-  appId: '1:522746955812:web:31c78a468f88e4145830b1',
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Debug: Log the config to make sure it's loading correctly
-console.log('Firebase Config:', firebaseConfig);
+// Validate required environment variables
+const requiredEnvVars = [
+  'EXPO_PUBLIC_FIREBASE_API_KEY',
+  'EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'EXPO_PUBLIC_FIREBASE_PROJECT_ID',
+  'EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  'EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  'EXPO_PUBLIC_FIREBASE_APP_ID',
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  throw new Error(
+    `Missing required Firebase environment variables: ${missingEnvVars.join(', ')}`
+  );
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -23,6 +37,4 @@ const app = initializeApp(firebaseConfig);
 export const auth: Auth = getAuth(app);
 
 // Initialize Cloud Firestore and get a reference to the service
-export const db: Firestore = getFirestore(app);
-
-console.log('Firebase initialized successfully'); 
+export const db: Firestore = getFirestore(app); 

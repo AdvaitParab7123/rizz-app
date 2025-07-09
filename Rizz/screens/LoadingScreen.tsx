@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Image, ActivityIndicator, Animated, StyleSheet } from 'react-native';
+import { View, Image, Animated, StyleSheet } from 'react-native';
+import { COLORS, SPACING, SHADOWS } from '../constants/theme';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 export default function LoadingScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -24,7 +26,7 @@ export default function LoadingScreen() {
   }, [pulseAnim]);
 
   return (
-    <View className="flex-1 bg-black justify-center items-center">
+    <View style={styles.container}>
       <Animated.View
         style={[
           styles.logoContainer,
@@ -38,28 +40,24 @@ export default function LoadingScreen() {
           style={styles.logo}
         />
       </Animated.View>
-      <ActivityIndicator size="large" color="#39FF14" style={styles.spinner} />
+      <LoadingSpinner size="large" color={COLORS.primaryLight} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   logoContainer: {
-    shadowColor: '#39FF14',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 20,
+    ...SHADOWS.primary,
   },
   logo: {
     width: 160,
     height: 160,
     borderRadius: 80,
-  },
-  spinner: {
-    marginTop: 40,
   },
 }); 

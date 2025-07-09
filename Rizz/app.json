@@ -1,29 +1,30 @@
 {
   "expo": {
-    "name": "Rizz",
-    "slug": "Rizz",
+    "name": "Rizzo",
+    "slug": "rizzo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo-glow.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/logo-glow.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo-glow.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#000000"
-      },
-      "edgeToEdgeEnabled": true
+      }
     },
     "web": {
-      "favicon": "./assets/logo-glow.png"
+      "favicon": "./assets/favicon.png"
     }
   }
 }

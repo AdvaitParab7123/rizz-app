@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Image, Dimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, Dimensions } from 'react-native';
 import { signInUser, signUpUser } from '../services/authService';
+import { NavigationProps } from '../types';
+import { COLORS, SPACING, FONT_SIZES, FONT_WEIGHTS, BORDER_RADIUS, SHADOWS } from '../constants/theme';
+import { LoadingSpinner } from '../components/LoadingSpinner';
+import { validateEmail, validatePassword } from '../utils/validation';
+import { handleFirebaseError, logError } from '../utils/errorHandling';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-export default function LoginScreen({ navigation }: any) {
+interface LoginScreenProps extends NavigationProps {}
+
+export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,12 +22,19 @@ export default function LoginScreen({ navigation }: any) {
       return;
     }
 
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
     try {
       await signInUser(email, password);
       navigation.navigate('Upload');
     } catch (error: any) {
-      Alert.alert('Sign In Error', error.message);
+      const appError = handleFirebaseError(error);
+      logError(appError, 'LoginScreen.handleSignIn');
+      Alert.alert('Sign In Error', appError.message);
     } finally {
       setLoading(false);
     }
@@ -32,17 +46,26 @@ export default function LoginScreen({ navigation }: any) {
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      Alert.alert('Error', passwordValidation.errors.join('\n'));
       return;
     }
 
     setLoading(true);
     try {
       await signUpUser(email, password);
+      Alert.alert('Success', 'Account created successfully!');
       navigation.navigate('Upload');
     } catch (error: any) {
-      Alert.alert('Sign Up Error', error.message);
+      const appError = handleFirebaseError(error);
+      logError(appError, 'LoginScreen.handleSignUp');
+      Alert.alert('Sign Up Error', appError.message);
     } finally {
       setLoading(false);
     }
@@ -61,7 +84,7 @@ export default function LoginScreen({ navigation }: any) {
 
       {/* Title and Slogan */}
       <View style={styles.titleContainer}>
-        <Text style={styles.title}>The Rizz App</Text>
+        <Text style={styles.title}>The Rizzo App</Text>
         <Text style={styles.slogan}>Level up your game</Text>
       </View>
 
@@ -70,20 +93,23 @@ export default function LoginScreen({ navigation }: any) {
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={COLORS.textSecondary}
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
+          autoCorrect={false}
           editable={!loading}
         />
         <TextInput
           style={styles.input}
           placeholder="Password"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={COLORS.textSecondary}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
           editable={!loading}
         />
       </View>
@@ -96,9 +122,9 @@ export default function LoginScreen({ navigation }: any) {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#000" />
+            <LoadingSpinner size="small" color={COLORS.background} />
           ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.buttonText}>Login</Text>
           )}
         </TouchableOpacity>
 
@@ -108,7 +134,7 @@ export default function LoginScreen({ navigation }: any) {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator size="small" color="#10B981" />
+            <LoadingSpinner size="small" color={COLORS.primary} />
           ) : (
             <Text style={styles.signUpButtonText}>Sign Up</Text>
           )}
@@ -121,120 +147,92 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xl,
   },
   logoContainer: {
-    marginBottom: 32,
-    shadowColor: '#39FF14',
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 15,
+    marginBottom: SPACING.xl,
+    ...SHADOWS.primary,
   },
   logo: {
-    width: width * 0.25, // 25% of screen width
+    width: width * 0.25,
     height: width * 0.25,
     borderRadius: (width * 0.25) / 2,
   },
   titleContainer: {
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '900', // Extra bold
-    color: '#FFFFFF',
+    fontSize: FONT_SIZES.xxxl,
+    fontWeight: FONT_WEIGHTS.extrabold,
+    color: COLORS.textPrimary,
     textAlign: 'center',
     letterSpacing: 1.5,
-    fontFamily: 'System', // Will use system bold font
-    textShadowColor: '#39FF14',
+    fontFamily: 'System',
+    textShadowColor: COLORS.primaryLight,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
   },
   slogan: {
-    fontSize: 16,
-    color: '#9CA3AF',
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 48,
+    marginBottom: SPACING.xxl,
     letterSpacing: 0.5,
-    fontWeight: '400',
+    fontWeight: FONT_WEIGHTS.normal,
     fontFamily: 'System',
   },
   inputContainer: {
     width: '100%',
-    marginBottom: 32,
+    marginBottom: SPACING.xl,
   },
   input: {
-    backgroundColor: '#111827',
-    color: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    fontSize: 16,
-    fontWeight: '500',
+    backgroundColor: COLORS.backgroundSecondary,
+    color: COLORS.textPrimary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
+    marginBottom: SPACING.md,
+    fontSize: FONT_SIZES.md,
+    fontWeight: FONT_WEIGHTS.medium,
     borderWidth: 1,
-    borderColor: '#1F2937',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderColor: COLORS.borderLight,
+    ...SHADOWS.subtle,
   },
   buttonContainer: {
     width: '100%',
-    gap: 16,
+    gap: SPACING.md,
   },
   button: {
-    backgroundColor: '#10B981',
-    paddingVertical: 18,
-    borderRadius: 16,
-    shadowColor: '#10B981',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    backgroundColor: COLORS.success,
+    paddingVertical: SPACING.lg,
+    borderRadius: BORDER_RADIUS.lg,
+    ...SHADOWS.secondary,
   },
   buttonText: {
-    color: '#000000',
+    color: COLORS.background,
     textAlign: 'center',
-    fontWeight: '700',
-    fontSize: 18,
+    fontWeight: FONT_WEIGHTS.bold,
+    fontSize: FONT_SIZES.lg,
     letterSpacing: 0.5,
   },
   signUpButton: {
     borderWidth: 2,
-    borderColor: '#10B981',
-    paddingVertical: 16,
-    borderRadius: 16,
+    borderColor: COLORS.primary,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDER_RADIUS.lg,
     backgroundColor: 'transparent',
-    shadowColor: '#10B981',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    ...SHADOWS.secondary,
   },
   signUpButtonText: {
-    color: '#10B981',
+    color: COLORS.primary,
     textAlign: 'center',
-    fontWeight: '700',
-    fontSize: 18,
+    fontWeight: FONT_WEIGHTS.bold,
+    fontSize: FONT_SIZES.lg,
     letterSpacing: 0.5,
   },
   disabledButton: {

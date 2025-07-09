@@ -2,25 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, StyleSheet, ActivityIndicator, Image, Dimensions } from 'react-native';
+import { User } from 'firebase/auth';
+
 import LoginScreen from './screens/LoginScreen';
 import UploadScreen from './screens/UploadScreen';
 import ReplyScreen from './screens/ReplyScreen';
 import LoadingScreen from './screens/LoadingScreen';
 import { loadAuthState, initializeAuthListener } from './services/authService';
-import { User } from 'firebase/auth';
+import { COLORS, SPACING } from './constants/theme';
 
 const Stack = createNativeStackNavigator();
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 // Auth Loading Screen Component
-const AuthLoadingScreen = () => (
+const AuthLoadingScreen: React.FC = () => (
   <View style={styles.authLoadingContainer}>
     <Image 
       source={require('./assets/logo-glow.png')} 
       style={styles.authLoadingLogo}
       resizeMode="contain"
     />
-    <ActivityIndicator size="large" color="#00FF99" style={styles.authLoadingSpinner} />
+    <ActivityIndicator size="large" color={COLORS.primary} style={styles.authLoadingSpinner} />
   </View>
 );
 
@@ -76,7 +78,7 @@ export default function App() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#000' },
+          contentStyle: { backgroundColor: COLORS.background },
         }}
         initialRouteName={user ? 'Upload' : 'Login'}
       >
@@ -92,16 +94,16 @@ export default function App() {
 const styles = StyleSheet.create({
   authLoadingContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
   authLoadingLogo: {
     width: width * 0.3,
     height: width * 0.3,
-    marginBottom: 32,
+    marginBottom: SPACING.xl,
   },
   authLoadingSpinner: {
-    marginTop: 16,
+    marginTop: SPACING.md,
   },
 });
